@@ -3,6 +3,8 @@ from PyQt5.QtCore import QThread, pyqtSignal
 import pyqtgraph as pg
 import serial
 import numpy as np
+import socket
+import time
 
 # Constants
 MAX_VALUE = 3
@@ -31,6 +33,11 @@ class WaterfallDisplay(QMainWindow):
         self.serial_thread = SerialThread()
         self.serial_thread.data_received.connect(self.update_display)
         self.serial_thread.start()
+        self.old_Intensity = -1
+        self.UDP_IP = "localhost"
+        self.UDP_PORT = 13000
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.UDP_IP, self.UDP_PORT))
 
     def init_ui(self):
         self.imageView = pg.ImageView()
@@ -38,6 +45,14 @@ class WaterfallDisplay(QMainWindow):
 
         # Waterfall plot setup
         self.waterfall_data = np.zeros((NUM_LINES, MAX_FREQ-MIN_FREQ), dtype=np.float32)
+
+    def send_features(self, Intensity, diff, anorm):
+        msg = f"{Intensity} {diff} {anorm};\n"
+        res = self.sock.send(msg.encode())
+
+        print(Intensity, diff, anorm, res)
+
+
 
     def update_display(self, data):
         # Shift data up one line
@@ -51,10 +66,25 @@ class WaterfallDisplay(QMainWindow):
         std = np.std(self.waterfall_data, axis=0)
 
         # Normalize and apply logarithmic scaling
-        image = np.log(np.square((self.waterfall_data - mean) / std) + 1)
+        image = np.square((self.waterfall_data - mean) / std)
+
+
+        Intensity = np.sum(image[-1])
+        if self.old_Intensity == -1:
+            self.old_Intensity = Intensity
+        
+        diff = Intensity - self.old_Intensity
+
+        self.old_Intensity = Intensity
+
+        anorm = np.std(image[-1])
+
+        Intensity = Intensity if Intensity > 250 else 0
+
+        self.send_features(Intensity, int(abs(diff)>90), anorm)
 
         # Update the ImageView with the new data
-        self.imageView.setImage(image.T, autoLevels=True, autoRange=False)
+        self.imageView.setImage(np.log(image.T+1), autoLevels=True, autoRange=False)
 
 if __name__ == '__main__':
     app = QApplication([])
