@@ -11,4 +11,7 @@ This project uses PyQt5 and PyQtGraph to plot the waterfall.
 
 - ```app.py``` is the PyQt5 application that plots the waterfall and sends the data to Pure Data over socket
 - ```receiveTCP.pd``` is the Pure Data patch that generates sound from the waterfall socket
-- 
+
+## demo
+
+[![youtube demo](./preview.png)](https://youtube.com/shorts/2HFFwganDSo?si=K4dWG275i-HbrMzx)
